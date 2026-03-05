@@ -722,10 +722,10 @@ body {
   <div class="splash-deco sd2"></div>
   <div class="splash-deco sd3"></div>
 
-  <div class="splash-logo-wrap">🥗</div>
-  <div class="splash-title">Portal SPPG</div>
-  <div class="splash-sub">Makan Bergizi Gratis</div>
-  <div class="splash-badge">Penyedia Makanan</div>
+  <div class="splash-logo-wrap" id="splashIconRing" onclick="openSplashEditor()" title="Klik untuk edit tampilan" style="cursor:pointer;position:relative">🥗<span style="position:absolute;bottom:-2px;right:-2px;font-size:13px;background:rgba(255,255,255,0.25);border-radius:50%;padding:2px;line-height:1">✏️</span></div>
+  <div class="splash-title" id="splashTitle">Portal SPPG</div>
+  <div class="splash-sub" id="splashSub">Makan Bergizi Gratis</div>
+  <div class="splash-badge" id="splashBadge">Penyedia Makanan</div>
 
   <div class="form-card">
     <h3>🔐 Masuk ke Sistem</h3>
@@ -1566,6 +1566,8 @@ async function loadAllFromDB() {
     STATE.pengiriman = pengiriman;
     renderAll();
     showToast('✅ Data berhasil dimuat dari Supabase!');
+    loadKopFromStorage();
+    applyKop();
     // Realtime
     subscribeRealtime('pesanan', () => dbGetPesanan().then(d => { STATE.pesanan = d; renderAll(); }));
     subscribeRealtime('pengiriman', () => dbGetPengiriman().then(d => { STATE.pengiriman = d; renderAll(); }));
@@ -1774,9 +1776,9 @@ function renderRecentOrders() {
       <div class="order-foot">
         <div class="order-date">📅 ${fmtDate(p.tanggal)} · ⏰ ${p.sesi||'07:00'}</div>
         <div class="action-btns">
-          <button class="btn-act btn-view" onclick="viewPesanan(${p.id})">👁</button>
-          <button class="btn-act btn-edit" onclick="editPesanan(${p.id})">✏️</button>
-          <button class="btn-act btn-del" onclick="deletePesanan(${p.id})">🗑</button>
+          <button class="btn-act btn-view" onclick="viewPesanan('${p.id}')">👁</button>
+          <button class="btn-act btn-edit" onclick="editPesanan('${p.id}')">✏️</button>
+          <button class="btn-act btn-del" onclick="deletePesanan('${p.id}')">🗑</button>
         </div>
       </div>
     </div>`;
@@ -1799,9 +1801,9 @@ function renderMenu() {
     <div class="order-foot">
       <div class="order-date">${m.kalori ? '⚡ '+m.kalori+' kkal' : '🍽️ Menu MBG'}</div>
       <div class="action-btns">
-        <button class="btn-act btn-view" onclick="viewMenu(${m.id})">👁</button>
-        <button class="btn-act btn-edit" onclick="editMenu(${m.id})">✏️</button>
-        <button class="btn-act btn-del" onclick="deleteMenu(${m.id})">🗑</button>
+        <button class="btn-act btn-view" onclick="viewMenu('${m.id}')">👁</button>
+        <button class="btn-act btn-edit" onclick="editMenu('${m.id}')">✏️</button>
+        <button class="btn-act btn-del" onclick="deleteMenu('${m.id}')">🗑</button>
       </div>
     </div>
   </div>`).join('');
@@ -1846,8 +1848,11 @@ async function saveMenu() {
     status: document.getElementById('mStatus').value,
   };
   if(!obj.nama) { showToast('Nama menu wajib diisi','error'); return; }
-  if(id) { const i = STATE.menus.findIndex(m=>m.id==id); STATE.menus[i] = {...STATE.menus[i],...obj}; showToast('✅ Menu berhasil diupdate'); }
-  else { STATE.menus.push({id:nextId(STATE.menus),...obj}); showToast('✅ Menu berhasil ditambahkan'); }
+  try {
+    if(id) { await dbSaveMenu({id,...obj}); showToast('✅ Menu berhasil diupdate'); }
+    else { await dbSaveMenu(obj); showToast('✅ Menu berhasil ditambahkan'); }
+    STATE.menus = await dbGetMenus();
+  } catch(e) { showToast('❌ Gagal simpan: '+e.message,'error'); return; }
   closeModal('modalMenuForm'); renderAll();
 }
 
@@ -1896,9 +1901,9 @@ function renderPesanan() {
       <div class="order-foot">
         <div class="order-date">📅 ${fmtDate(p.tanggal)}</div>
         <div class="action-btns">
-          <button class="btn-act btn-view" onclick="viewPesanan(${p.id})">👁</button>
-          <button class="btn-act btn-edit" onclick="editPesanan(${p.id})">✏️</button>
-          <button class="btn-act btn-del" onclick="deletePesanan(${p.id})">🗑</button>
+          <button class="btn-act btn-view" onclick="viewPesanan('${p.id}')">👁</button>
+          <button class="btn-act btn-edit" onclick="editPesanan('${p.id}')">✏️</button>
+          <button class="btn-act btn-del" onclick="deletePesanan('${p.id}')">🗑</button>
         </div>
       </div>
     </div>`;
@@ -1951,8 +1956,11 @@ async function savePesanan() {
     catatan: document.getElementById('pCatatan').value,
   };
   if(!obj.jumlah||!obj.tanggal) { showToast('Lengkapi data pesanan','error'); return; }
-  if(id) { const i=STATE.pesanan.findIndex(p=>p.id==id); STATE.pesanan[i]={...STATE.pesanan[i],...obj}; showToast('✅ Pesanan diupdate'); }
-  else { STATE.pesanan.push({id:nextId(STATE.pesanan),...obj}); showToast('✅ Pesanan dibuat'); }
+  try {
+    if(id) { await dbSavePesanan({id,...obj}); showToast('✅ Pesanan diupdate'); }
+    else { await dbSavePesanan(obj); showToast('✅ Pesanan dibuat'); }
+    STATE.pesanan = await dbGetPesanan();
+  } catch(e) { showToast('❌ Gagal: '+e.message,'error'); return; }
   closeModal('modalPesananForm'); renderAll();
 }
 
@@ -1996,9 +2004,9 @@ function renderSekolah() {
     <div class="order-foot">
       <div class="order-date">📍 ${s.alamat?.substring(0,25)||'-'}…</div>
       <div class="action-btns">
-        <button class="btn-act btn-view" onclick="viewSekolah(${s.id})">👁</button>
-        <button class="btn-act btn-edit" onclick="editSekolah(${s.id})">✏️</button>
-        <button class="btn-act btn-del" onclick="deleteSekolah(${s.id})">🗑</button>
+        <button class="btn-act btn-view" onclick="viewSekolah('${s.id}')">👁</button>
+        <button class="btn-act btn-edit" onclick="editSekolah('${s.id}')">✏️</button>
+        <button class="btn-act btn-del" onclick="deleteSekolah('${s.id}')">🗑</button>
       </div>
     </div>
   </div>`).join('');
@@ -2106,8 +2114,28 @@ function saveKop() {
     document.getElementById('kopLogoDisplay').textContent = STATE.kop.logoEmoji;
     document.getElementById('kopLogoImg').style.display='none';
   }
+  try { localStorage.setItem('mbg_kop_sppg', JSON.stringify(STATE.kop)); } catch(e){}
   closeModal('modalKop');
   showToast('✅ Kop berhasil diupdate');
+}
+function loadKopFromStorage(){
+  try {
+    const saved = localStorage.getItem('mbg_kop_sppg');
+    if(saved){ STATE.kop = {...STATE.kop, ...JSON.parse(saved)}; }
+  } catch(e){}
+}
+function applyKop(){
+  document.getElementById('kopTitle').textContent = STATE.kop.title;
+  document.getElementById('kopSubtitle').textContent = STATE.kop.subtitle;
+  if(STATE.kop.logoImg){
+    document.getElementById('kopLogoDisplay').style.display='none';
+    document.getElementById('kopLogoImg').style.display='block';
+    document.getElementById('kopLogoImg').src = STATE.kop.logoImg;
+  } else {
+    document.getElementById('kopLogoDisplay').style.display='block';
+    document.getElementById('kopLogoDisplay').textContent = STATE.kop.logoEmoji||'🥗';
+    document.getElementById('kopLogoImg').style.display='none';
+  }
 }
 
 // ── PROFIL ──
@@ -2377,9 +2405,9 @@ function renderPengiriman() {
 
     let actionBtn = '';
     if(canKonfirmasiTerima) {
-      actionBtn = `<button class="btn-act" style="background:#FFF3E0;color:var(--orange);font-size:11px;padding:6px 10px;font-weight:700" onclick="openKonfirmasiTerima(${p.id})">🏫 Konfirmasi Terima</button>`;
+      actionBtn = `<button class="btn-act" style="background:#FFF3E0;color:var(--orange);font-size:11px;padding:6px 10px;font-weight:700" onclick="openKonfirmasiTerima('${p.id}')">🏫 Konfirmasi Terima</button>`;
     } else if(canKonfirmasiKembali) {
-      actionBtn = `<button class="btn-act" style="background:var(--green-light);color:var(--green2);font-size:11px;padding:6px 10px;font-weight:700" onclick="openKonfirmasiKembali(${p.id})">↩️ Konfirmasi Kembali</button>`;
+      actionBtn = `<button class="btn-act" style="background:var(--green-light);color:var(--green2);font-size:11px;padding:6px 10px;font-weight:700" onclick="openKonfirmasiKembali('${p.id}')">↩️ Konfirmasi Kembali</button>`;
     }
 
     return `<div class="order-card">
@@ -2403,9 +2431,9 @@ function renderPengiriman() {
           ${actionBtn}
         </div>
         <div class="action-btns">
-          <button class="btn-act btn-view" onclick="viewPengiriman(${p.id})">👁</button>
-          <button class="btn-act btn-edit" onclick="editPengiriman(${p.id})">✏️</button>
-          <button class="btn-act btn-del" onclick="deletePengiriman(${p.id})">🗑</button>
+          <button class="btn-act btn-view" onclick="viewPengiriman('${p.id}')">👁</button>
+          <button class="btn-act btn-edit" onclick="editPengiriman('${p.id}')">✏️</button>
+          <button class="btn-act btn-del" onclick="deletePengiriman('${p.id}')">🗑</button>
         </div>
       </div>
     </div>`;
@@ -2547,23 +2575,25 @@ function openKonfirmasiTerima(id) {
   openModal('modalKonfirmasiTerima');
 }
 async function saveKonfirmasiTerima() {
-  const id = +document.getElementById('ktId').value;
-  const jml = +document.getElementById('ktJumlahTerima').value;
-  const nama = document.getElementById('ktNamaPenerima').value;
-  if(!jml || !nama) { showToast('Lengkapi nama penerima dan jumlah','error'); return; }
-  const i = STATE.pengiriman.findIndex(p=>p.id===id);
-  STATE.pengiriman[i] = {
-    ...STATE.pengiriman[i],
+  const id = document.getElementById('ktId').value;
+  const jml = +document.getElementById('ktJumlah').value;
+  const nama = document.getElementById('ktNama').value;
+  if(!jml || !nama) { showToast('Isi nama penerima dan jumlah','error'); return; }
+  const update = {
     status: 'Diterima Sekolah',
-    jumlahTerima: jml,
-    kondisiTerima: document.getElementById('ktKondisi').value,
-    namaPenerima: nama,
-    waktuTerima: document.getElementById('ktWaktuTerima').value,
-    catatanTerima: document.getElementById('ktCatatan').value,
+    jumlah_terima: jml,
+    kondisi_terima: document.getElementById('ktKondisi').value,
+    nama_penerima: nama,
+    waktu_terima: document.getElementById('ktWaktu').value,
+    catatan_terima: document.getElementById('ktCatatan').value,
   };
-  closeModal('modalKonfirmasiTerima');
-  renderAll();
-  showToast('✅ Konfirmasi penerimaan sekolah berhasil dicatat!');
+  try {
+    await sb.from('pengiriman').update(update).eq('id', id);
+    STATE.pengiriman = await dbGetPengiriman();
+    closeModal('modalKonfirmasiTerima');
+    renderAll();
+    showToast('✅ Penerimaan berhasil dikonfirmasi!');
+  } catch(e) { showToast('❌ Gagal: '+e.message,'error'); }
 }
 
 // Konfirmasi Pengembalian Rantang
@@ -2580,26 +2610,27 @@ function openKonfirmasiKembali(id) {
   openModal('modalKonfirmasiKembali');
 }
 async function saveKonfirmasiKembali() {
-  const id = +document.getElementById('kkId').value;
-  const jml = +document.getElementById('kkJumlahKembali').value;
-  const petugas = document.getElementById('kkPetugasSPPG').value;
-  if(!jml || !petugas) { showToast('Lengkapi jumlah dan nama petugas','error'); return; }
-  const i = STATE.pengiriman.findIndex(p=>p.id===id);
-  const kondisi = document.getElementById('kkKondisi').value;
-  STATE.pengiriman[i] = {
-    ...STATE.pengiriman[i],
-    status: kondisi.startsWith('Lengkap') ? 'Selesai' : 'Rantang Kembali',
-    jumlahKembali: jml,
-    waktuKembali: document.getElementById('kkWaktu').value,
-    kondisiKembali: kondisi,
-    rantangBaik: +document.getElementById('kkRantangBaik').value,
-    rantangRusak: +document.getElementById('kkRantangRusak').value,
-    petugasSPPG: petugas,
-    catatanKembali: document.getElementById('kkCatatan').value,
+  const id = document.getElementById('kkId').value;
+  const jml = +document.getElementById('kkJumlah').value;
+  const nama = document.getElementById('kkNama').value;
+  if(!jml) { showToast('Isi jumlah rantang yang kembali','error'); return; }
+  const update = {
+    status: 'Selesai',
+    jumlah_kembali: jml,
+    waktu_kembali: document.getElementById('kkWaktu').value,
+    kondisi_kembali: document.getElementById('kkKondisi').value,
+    rantang_baik: +document.getElementById('kkRantangBaik').value||jml,
+    rantang_rusak: +document.getElementById('kkRantangRusak').value||0,
+    petugas_sppg: nama||'Petugas SPPG',
+    catatan_kembali: document.getElementById('kkCatatan').value,
   };
-  closeModal('modalKonfirmasiKembali');
-  renderAll();
-  showToast('✅ Rantang diterima kembali – Pengiriman selesai!');
+  try {
+    await sb.from('pengiriman').update(update).eq('id', id);
+    STATE.pengiriman = await dbGetPengiriman();
+    closeModal('modalKonfirmasiKembali');
+    renderAll();
+    showToast('✅ Pengembalian rantang berhasil dicatat!');
+  } catch(e) { showToast('❌ Gagal: '+e.message,'error'); }
 }
 
 // Update dashboard stat to include pengiriman
@@ -2619,6 +2650,121 @@ const today = new Date().toISOString().split('T')[0];
 const monthAgo = new Date(Date.now()-30*86400000).toISOString().split('T')[0];
 document.getElementById('rptFrom').value = monthAgo;
 document.getElementById('rptTo').value = today;
+
+
+// ── SPLASH EDITOR ──
+function openSplashEditor() {
+  const s = getSplashData();
+  document.getElementById('splashEmojiInput').value = s.emoji || '🥗';
+  document.getElementById('splashTitleInput').value = s.title || 'Portal SPPG';
+  document.getElementById('splashSubInput').value = s.sub || 'Makan Bergizi Gratis';
+  document.getElementById('splashBadgeInput').value = s.badge || 'Penyedia Makanan';
+  if(s.logoImg) {
+    document.getElementById('splashLogoPreview').style.display='block';
+    document.getElementById('splashLogoPreviewImg').src = s.logoImg;
+  }
+  openModal('modalSplashEditor');
+}
+function previewSplashLogo(input) {
+  const f = input.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = e => {
+    document.getElementById('splashLogoPreview').style.display='block';
+    document.getElementById('splashLogoPreviewImg').src = e.target.result;
+    const s = getSplashData(); s.logoImg = e.target.result; saveSplashData(s);
+  };
+  r.readAsDataURL(f);
+}
+function getSplashData() {
+  try { return JSON.parse(localStorage.getItem('mbg_splash_sppg')||'{}'); } catch(e){ return {}; }
+}
+function saveSplashData(data) {
+  try { localStorage.setItem('mbg_splash_sppg', JSON.stringify(data)); } catch(e){}
+}
+function saveSplashEditor() {
+  const data = {
+    emoji: document.getElementById('splashEmojiInput').value || '🥗',
+    title: document.getElementById('splashTitleInput').value || 'Portal SPPG',
+    sub: document.getElementById('splashSubInput').value || 'Makan Bergizi Gratis',
+    badge: document.getElementById('splashBadgeInput').value || 'Penyedia Makanan',
+    logoImg: getSplashData().logoImg || '',
+  };
+  saveSplashData(data);
+  applySplashData(data);
+  closeModal('modalSplashEditor');
+  showToast('✅ Tampilan halaman awal diupdate!');
+}
+function applySplashData(data) {
+  if(!data || !Object.keys(data).length) return;
+  const titleEl = document.getElementById('splashTitle');
+  const subEl = document.getElementById('splashSub');
+  const badgeEl = document.getElementById('splashBadge');
+  const ringEl = document.getElementById('splashIconRing');
+  if(titleEl) titleEl.textContent = data.title || 'Portal SPPG';
+  if(subEl) subEl.textContent = data.sub || 'Makan Bergizi Gratis';
+  if(badgeEl) badgeEl.textContent = data.badge || 'Penyedia Makanan';
+  if(ringEl) {
+    if(data.logoImg) {
+      ringEl.innerHTML = `<img src="${data.logoImg}" style="width:70px;height:70px;object-fit:contain;border-radius:16px"><span style="position:absolute;bottom:-4px;right:-4px;font-size:14px">✏️</span>`;
+    } else {
+      ringEl.innerHTML = `${data.emoji||'🥗'}<span style="position:absolute;bottom:-4px;right:-4px;font-size:14px">✏️</span>`;
+    }
+  }
+}
+applySplashData(getSplashData());
+
+// ── AUTO SESSION CHECK ──
+async function initApp() {
+  loadKopFromStorage();
+  const { data } = await sb.auth.getSession();
+  if (data?.session) {
+    const profile = await sbGetProfile();
+    if (profile?.role === 'sppg') {
+      AUTH.username = profile.username || data.session.user.email.split('@')[0];
+      document.getElementById('displayUsername').textContent = AUTH.username;
+      document.getElementById('splash').style.display = 'none';
+      document.getElementById('app').style.display = 'block';
+      applyKop();
+      await loadAllFromDB();
+      return;
+    }
+  }
+  renderAll();
+}
+initApp();
+
 </script>
+
+<!-- Modal: Edit Splash Screen SPPG -->
+<div class="modal-overlay" id="modalSplashEditor">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">✏️ Edit Tampilan Halaman Awal</div>
+    <div class="field-row">
+      <label>Ikon / Emoji</label>
+      <input id="splashEmojiInput" placeholder="🥗" maxlength="4" style="font-size:24px;text-align:center">
+    </div>
+    <div class="field-row">
+      <label>Upload Logo</label>
+      <input type="file" id="splashLogoFile" accept="image/*" onchange="previewSplashLogo(this)" style="font-size:13px">
+      <div id="splashLogoPreview" style="margin-top:8px;display:none">
+        <img id="splashLogoPreviewImg" style="height:60px;border-radius:12px;object-fit:contain">
+      </div>
+    </div>
+    <div class="field-row">
+      <label>Judul Portal</label>
+      <input id="splashTitleInput" placeholder="Portal SPPG">
+    </div>
+    <div class="field-row">
+      <label>Sub Judul</label>
+      <input id="splashSubInput" placeholder="Makan Bergizi Gratis">
+    </div>
+    <div class="field-row">
+      <label>Badge / Label</label>
+      <input id="splashBadgeInput" placeholder="Penyedia Makanan">
+    </div>
+    <button class="btn-submit" onclick="saveSplashEditor()">💾 Simpan Tampilan</button>
+  </div>
+</div>
 </body>
 </html>
