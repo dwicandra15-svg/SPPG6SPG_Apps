@@ -92,7 +92,7 @@ async function dbDeleteSekolah(id) {
 async function dbGetPesanan() {
   const { data, error } = await sb.from('pesanan').select('*, sekolah(*), menus(*)').order('created_at', { ascending: false });
   if (error) { console.error(error); return []; }
-  return data.map(p => ({ id: p.id, sekolahId: p.sekolah_id, menuId: p.menu_id, jumlah: p.jumlah, tanggal: p.tanggal, sesi: p.waktu, status: p.status, catatan: p.catatan });
+  return data.map(p => ({ id: p.id, sekolahId: p.sekolah_id, menuId: p.menu_id, jumlah: p.jumlah, tanggal: p.tanggal, sesi: p.waktu, status: p.status, catatan: p.catatan }));
 }
 async function dbSavePesanan(obj) {
   const row = { sekolah_id: obj.sekolahId, menu_id: obj.menuId, jumlah: obj.jumlah, tanggal: obj.tanggal, waktu: obj.sesi||'07:00', status: obj.status, catatan: obj.catatan||'' };
@@ -160,7 +160,7 @@ async function dbGetAbsensi(sekolahId) {
   if (sekolahId) query = query.eq('sekolah_id', sekolahId);
   const { data, error } = await query;
   if (error) { console.error(error); return []; }
-  return data.map(a => ({ id: a.id, kelasId: a.kelas_id, menuId: a.menu_id, tanggal: a.tanggal, sesi: a.waktu, hadir: a.hadir, tidakHadir: a.tidak_hadir, catatan: a.catatan });
+  return data.map(a => ({ id: a.id, kelasId: a.kelas_id, menuId: a.menu_id, tanggal: a.tanggal, sesi: a.waktu, hadir: a.hadir, tidakHadir: a.tidak_hadir, catatan: a.catatan }));
 }
 async function dbSaveAbsensi(obj, sekolahId) {
   const row = { sekolah_id: sekolahId, kelas_id: obj.kelasId||null, menu_id: obj.menuId||null, tanggal: obj.tanggal, waktu: obj.sesi||'07:00', hadir: obj.hadir||0, tidak_hadir: obj.tidakHadir||0, catatan: obj.catatan||'' };
@@ -731,11 +731,11 @@ body {
     <h3>🔐 Masuk ke Sistem</h3>
     <div class="inp-group">
       <label>ID Operator</label>
-      <input type="text" id="loginUser" placeholder="Masukkan ID Operator" value="sppg001">
+      <input type="text" id="loginUser" placeholder="Masukkan ID Operator" value="">
     </div>
     <div class="inp-group">
       <label>Kata Sandi</label>
-      <input type="password" id="loginPass" placeholder="••••••••" value="1234">
+      <input type="password" id="loginPass" placeholder="••••••••" value="">
     </div>
     <button class="btn-login" onclick="doLogin()">Masuk →</button>
   </div>
@@ -1835,7 +1835,7 @@ function openMenuForm(id=null) {
   openModal('modalMenuForm');
 }
 
-function saveMenu() {
+async function saveMenu() {
   const id = document.getElementById('menuFormId').value;
   const obj = {
     nama: document.getElementById('mNama').value,
@@ -1868,7 +1868,7 @@ function viewMenu(id) {
 }
 
 function editMenu(id) { openMenuForm(id); }
-function deleteMenu(id) {
+async function deleteMenu(id) {
   if(!confirm('Hapus menu ini?')) return;
   try { await dbDeleteMenu(id); STATE.menus = await dbGetMenus(); } catch(e) { showToast('❌ '+e.message,'error'); return; }
   renderAll(); showToast('🗑️ Menu dihapus');
@@ -1939,7 +1939,7 @@ function openPesananForm(id=null) {
   openModal('modalPesananForm');
 }
 
-function savePesanan() {
+async function savePesanan() {
   const id = document.getElementById('pesananFormId').value;
   const obj = {
     sekolahId: +document.getElementById('pSekolah').value,
@@ -1975,7 +1975,7 @@ function viewPesanan(id) {
 }
 
 function editPesanan(id) { openPesananForm(id); }
-function deletePesanan(id) {
+async function deletePesanan(id) {
   if(!confirm('Hapus pesanan ini?')) return;
   STATE.pesanan = STATE.pesanan.filter(p=>p.id!==id);
   renderAll(); showToast('🗑️ Pesanan dihapus');
@@ -2025,7 +2025,7 @@ function openSekolahForm(id=null) {
   openModal('modalSekolahForm');
 }
 
-function saveSekolah() {
+async function saveSekolah() {
   const id = document.getElementById('sekolahFormId').value;
   const obj = {
     nama: document.getElementById('sNama').value,
@@ -2062,7 +2062,7 @@ function viewSekolah(id) {
 }
 
 function editSekolah(id) { openSekolahForm(id); }
-function deleteSekolah(id) {
+async function deleteSekolah(id) {
   if(!confirm('Hapus sekolah ini?')) return;
   try { await dbDeleteSekolah(id); STATE.sekolah = await dbGetSekolah(); } catch(e) { showToast('❌ '+e.message,'error'); return; }
   renderAll(); showToast('🗑️ Sekolah dihapus');
@@ -2456,7 +2456,7 @@ function openPengirimanForm(id=null) {
   openModal('modalPengirimanForm');
 }
 
-function savePengiriman() {
+async function savePengiriman() {
   const id = document.getElementById('pgFormId').value;
   const obj = {
     sekolahId: +document.getElementById('pgSekolah').value,
@@ -2529,7 +2529,7 @@ function viewPengiriman(id) {
 }
 
 function editPengiriman(id) { openPengirimanForm(id); }
-function deletePengiriman(id) {
+async function deletePengiriman(id) {
   if(!confirm('Hapus data pengiriman ini?')) return;
   STATE.pengiriman = STATE.pengiriman.filter(p=>p.id!==id);
   renderAll(); showToast('🗑️ Data pengiriman dihapus');
@@ -2546,7 +2546,7 @@ function openKonfirmasiTerima(id) {
   document.getElementById('ktKondisi').value = 'Baik – Lengkap';
   openModal('modalKonfirmasiTerima');
 }
-function saveKonfirmasiTerima() {
+async function saveKonfirmasiTerima() {
   const id = +document.getElementById('ktId').value;
   const jml = +document.getElementById('ktJumlahTerima').value;
   const nama = document.getElementById('ktNamaPenerima').value;
@@ -2579,7 +2579,7 @@ function openKonfirmasiKembali(id) {
   document.getElementById('kkKondisi').value = 'Lengkap – Baik';
   openModal('modalKonfirmasiKembali');
 }
-function saveKonfirmasiKembali() {
+async function saveKonfirmasiKembali() {
   const id = +document.getElementById('kkId').value;
   const jml = +document.getElementById('kkJumlahKembali').value;
   const petugas = document.getElementById('kkPetugasSPPG').value;
